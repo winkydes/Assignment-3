@@ -38,7 +38,8 @@
                     },
                 })
                 .then(res => res.json())
-                .then(res => console.log(res));
+                .then(res => console.log(res))
+                .then(() => window.location.href= `http://localhost:3000/event/${document.getElementById("eventId").value}`);
             }
         </script>
     </head>

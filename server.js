@@ -210,27 +210,47 @@ db.once('open', function () {
                 res.send({message: `{\n"eventId": ${event.eventId},\n"name": "${event.name}",\n"loc":\n{\n"locId": ${event.loc.locId},\n"name": "${event.loc.name}"\n},\n"quota": ${event.quota}\n}`});
             } 
         })
-    })
+    });
 
     //Q8: Put request to change the event details
-    app.put('/event/:eventId', (req, res) => {
+    app.put('/event/:eventId', (req, res) => {   
         Event.findOne({eventId: req.params['eventId']}, (err, event) => {
+            console.log(event);
             let originalName = event.name;
             let originalLocId = event.loc.locId;
             let originalQuota = event.quota;
-            //location.findone find the new location with new locId
-            //then update with a variable and update code below
-            Event.updateOne({eventId: req.params['eventId']},{
-                name: req.params['name']?req.params['name']:originalName,
-                quota: req.params['quota']?req.params['quota']:originalQuota,
-                loc: req.params['loc']?req.params['loc']:originalLocId,
-            }, (err, updatedEvent) => {
-                if(err)
-                    res.send("ha you gay you on9");
-                res.send("congrats");
-            })
-        })
-    })
+            let newLoc = '';
+            if (req.body['locId'] != '') {
+                Location.findOne({locId: req.body['locId']}, (err, requestLoc) => {
+                    newLoc = requestLoc;
+                });
+            }
+            Location.findOne({locId: originalLocId}, (err, originalLoc) => {
+                if (err)
+                    res.status(404).send("Location not found");
+                else {
+                    Event.findOneAndUpdate({eventId: req.params['eventId']},
+                    {
+                        $set: {
+                            name: req.body['name']!=''?req.body['name']:originalName,
+                            quota: req.body['quota']!=''?req.body['quota']:originalQuota,
+                            loc: newLoc!=''?newLoc:originalLoc,
+                        }
+                    },
+                    {new: true},
+                    (err, updatedEvent) => {
+                        console.log(updatedEvent);
+                        if(err)
+                            res.send("An error occurred when trying to update the event.");
+                        else {
+                            res.status(201).send(`{\n"eventId": ${updatedEvent.eventId},\n"name": "${updatedEvent.name}",\n"loc":\n{\n"locId": ${updatedEvent.loc.locId},\n"name": "${updatedEvent.loc.name}"\n},\n"quota": ${updatedEvent.quota}\n}`);
+                        }
+                    });
+                }
+                
+            });
+        });
+    });
 
     //create location /createLoc/locId/1/name/CUHK/quota/100
     app.post('/createLoc', (req, res) => {
