@@ -1,3 +1,6 @@
+// Student Name: Lam Wai To Keith
+// SID: 1155133260
+
 const express = require('express');
 const app = express();
 const mongoose = require('mongoose');
@@ -46,7 +49,7 @@ db.once('open', function () {
             required: true
         },
         loc: {
-            type: Object
+            type: mongoose.Schema.Types.ObjectId, ref: 'Location',
         },
         quota: {
             type: Number
@@ -56,35 +59,31 @@ db.once('open', function () {
     const Event = mongoose.model('Event', EventSchema);
     
     //Q1: look up the event with the given event ID from the database
-    //Done
+    //Done and checked
     app.get('/event/:eventId', (req,res) => {
-        Event.findOne(
-            {eventId: req.params['eventId']},
-            'eventId name loc quota', (err,e) => {
-                if (err || e == null){
-                    res.status(404).send("Event Id not found");
-                }  
-                else
-                    res.send(`{<br>\n"eventId": ${e.eventId},<br>\n"name": "${e.name}",<br>\n"loc":<br>\n{<br>\n"locId": ${e.loc.locId},<br>\n"name": "${e.loc.name}"<br>\n},<br>\n"quota": ${e.quota}<br>\n}`);
+        Event.findOne({eventId: req.params['eventId']}).populate('loc').exec((err,e) => {
+            if (err || e == null){
+                res.status(404).set('Content-Type', 'text/plain').send("Event Id not found");
             }
-        );
+            else
+                res.status(201).set('Content-Type', 'text/plain').send(`{\n"eventId": ${e.eventId},\n"name": "${e.name}",\n"loc":\n{\n"locId": ${e.loc.locId},\n"name": "${e.loc.name}"\n},\n"quota": ${e.quota}\n}`);
+        });
     });
 
     //Q2: use the parameters submitted in the HTTP request body to create a new event in the database
-    //Done
+    //Done and checked
     app.post('/event', (req,res) => {
-        console.log(req);
         Location.findOne({locId: req.body['locId']}, (err, loc) => {
             if(err)
-                res.status(404).send("error in finding location");
+                res.status(404).set('Content-Type', 'text/plain').send("error in finding location");
             if (loc === null)
-                res.status(404).send("no such location, please enter a valid location ID");
+                res.status(404).set('Content-Type', 'text/plain').send("no such location, please enter a valid location ID");
             else if(req.body['quota'] > loc.quota){
-                    res.status(400).send("You have inputted a quota larger than the location can hold, please try again");
+                    res.status(400).set('Content-Type', 'text/plain').send("You have inputted a quota larger than the location can hold, please try again");
                 }
             else{
                 let maxId = -1;
-                Event.find({}, (err, eventList) => {
+                Event.find({}).populate('loc').exec((err, eventList) => {
                     if (eventList.length === 0) {
                         maxId = 0;
                         Event.create({
@@ -94,9 +93,9 @@ db.once('open', function () {
                             quota: req.body['quota']
                         } , (err,e) => {
                             if (err)
-                                res.status(500).send("Error in creating event");
+                                res.status(500).set('Content-Type', 'text/plain').send("Error in creating event");
                             else
-                                res.status(201).send(`{<br>\n"eventId": ${e.eventId},<br>\n"name": "${e.name}",<br>\n"loc":<br>\n{<br>\n"locId": ${e.loc.locId},<br>\n"name": "${e.loc.name}"<br>\n},<br>\n"quota": ${e.quota}<br>\n}`);
+                                res.status(201).set('Content-Type', 'text/plain').set('Location', `http://localhost:3000/event/${e.eventId}`).send(`{\n"eventId": ${e.eventId},\n"name": "${e.name}",\n"loc":\n{\n"locId": ${e.loc.locId},\n"name": "${e.loc.name}"\n},\n"quota": ${e.quota}\n}`);
                         });
                     }
                     else{
@@ -110,9 +109,9 @@ db.once('open', function () {
                             quota: req.body['quota']
                         } , (err,e) => {
                             if (err)
-                                res.status(500).send("Error in creating event");
+                                res.status(500).set('Content-Type', 'text/plain').send("Error in creating event");
                             else
-                                res.status(201).send(`{<br>\n"eventId": ${e.eventId},<br>\n"name": "${e.name}",<br>\n"loc":<br>\n{<br>\n"locId": ${e.loc.locId},<br>\n"name": "${e.loc.name}"<br>\n},<br>\n"quota": ${e.quota}<br>\n}`);
+                                res.status(201).set('Content-Type', 'text/plain').set('Location', `http://localhost:3000/event/${e.eventId}`).send(`{\n"eventId": ${e.eventId},\n"name": "${e.name}",\n"loc":\n{\n"locId": ${e.loc.locId},\n"name": "${e.loc.name}"\n},\n"quota": ${e.quota}\n}`);
                         });
                     }
                 });
@@ -121,100 +120,96 @@ db.once('open', function () {
     });
 
     //Q3 Remove one event from database
-    //Done
+    //Done and checked
     app.delete('/event/:eventId', (req,res) => {
         Event.findOne({eventId: req.params['eventId']}, (err, event) => {
-            if (err) res.status(404).send("Event you try to delete is not found.");
+            if (err || event === null) res.status(404).send("Event you try to delete is not found.");
             else {
-                Event.deleteOne({eventId: event.eventId}, (err) => {
-                    if (err) res.status(500).send("Delete request failed");
-                    else res.status(204).send("The event has been deleted.");
-                })
+                Event.deleteOne({eventId: event.eventId}).exec(res.status(204).set('Content-Type', 'text/plain').send("The event has been deleted."));
             }
         })
     });
 
     //Q4: get all events
-    //Done
+    //Done and checked
     app.get('/event', (req, res) => {
-        Event.find({}, (err, event) => {
+        Event.find({}).populate('loc').exec((err, event) => {
             if (err) res.status(500).send("Error in finding the list of events");
             else {
-                let response = '[<br>\n';
-                event.forEach(item => response = response + `{<br>\n"eventId": ${item.eventId},<br>\n"name": "${item.name}",<br>\n"loc":<br>\n{<br>\n"locId": ${item.loc.locId},<br>\n"name": "${item.loc.name}"<br>\n},<br>\n"quota": ${item.quota}<br>\n}<br>\n,<br>\n`);
-                response = response.substring(0, response.length - 6);
+                let response = '[\n';
+                event.forEach(item => response = response + `{\n"eventId": ${item.eventId},\n"name": "${item.name}",\n"loc":\n{\n"locId": ${item.loc.locId},\n"name": "${item.loc.name}"\n},\n"quota": ${item.quota}\n}\n,\n`);
+                response = response.substring(0, response.length - 2);
                 response = response + ']';
-                res.status(200).send(response);
+                res.status(200).set('Content-Type', 'text/plain').send(response);
             }
         });
     });
 
     //Q5: Show detail for a specific location ID
-    //Done
+    //Done and checked
     app.get('/loc/:locationId', (req, res) => {
         Location.findOne({locId: req.params['locationId']}, (err, loc) => {
             if (err) 
-                res.status(500).send("Error in finding the location");
+                res.status(500).set('Content-Type', 'text/plain').send("Error in finding the location");
             else if 
-                (loc == null) res.status(404).send("We cannot find the location with the ID you provided.");
+                (loc == null) res.status(404).set('Content-Type', 'text/plain').send("We cannot find the location with the ID you provided.");
             else 
-                res.status(200).send(`{<br>\n"locId": ${loc.locId},<br>\n"name": "${loc.name}",<br>\n"quota": ${loc.quota}<br>\n}`);
+                res.status(200).set('Content-Type', 'text/plain').send(`{\n"locId": ${loc.locId},\n"name": "${loc.name}",\n"quota": ${loc.quota}\n}`);
         })
     });
 
     //Q6 and Q7: get all locations and locations that has quota larger than query
-    //Done
+    //Done and checked
     app.get('/loc', (req, res) => {
         if (req.query.quota === undefined){
             Location.find({}, (err, loc) => {
                 if(err)
-                    res.status(500).send("Error in finding the list of locations");
+                    res.status(500).set('Content-Type', 'text/plain').send("Error in finding the list of locations");
                 else
                     {
-                        let response = '[<br>\n';
-                        loc.forEach(item => response = response + `{<br>\n"locId": ${item.locId},<br>\n"name": "${item.name}",<br>\n"quota": ${item.quota}<br>\n}<br>\n,<br>\n`);
-                        response = response.substring(0, response.length - 6);
+                        let response = '[\n';
+                        loc.forEach(item => response = response + `{\n"locId": ${item.locId},\n"name": "${item.name}",\n"quota": ${item.quota}\n}\n,\n`);
+                        response = response.substring(0, response.length - 2);
                         response = response + ']';
-                        res.status(200).send(response);
+                        res.status(200).set('Content-Type', 'text/plain').send(response);
                     }
             });
         }
         else {
             Location.find({quota:{$gte: req.query.quota}}, (err, loc) => {
                 if (err)
-                    res.status(500).send("error in finding the list of location with the given quota");
-                else if (loc.length === 0) {
-                    res.status(200).send('[]');
-                }
+                    res.status(500).set('Content-Type', 'text/plain').send("error in finding the list of location with the given quota");
                 else {
-                    let response = '[<br>\n';
-                    loc.forEach(item => response = response + `{<br>\n"locId": ${item.locId},<br>\n"name": "${item.name}",<br>\n"quota": ${item.quota}<br>\n}<br>\n,<br>\n`);
-                    response = response.substring(0, response.length - 6);
+                    let response = '[\n';
+                    loc.forEach(item => response = response + `{\n"locId": ${item.locId},\n"name": "${item.name}",\n"quota": ${item.quota}\n}\n,\n`);
+                    if (loc.length == 0) response = response.substring(0, response.length - 1);
+                    else response = response.substring(0, response.length - 2);
                     response = response + ']';
-                    res.status(200).send(response);
+                    res.status(200).set('Content-Type', 'text/plain').send(response);
                 }
             })
         }
     });
 
     //Request for finding the event with the specified event ID
+    //Done and checked
     app.post('/findEvent', (req, res) => {
-        Event.findOne({eventId: req.body['eventId']}, (err, event) => {
+        Event.findOne({eventId: req.body['eventId']}).populate('loc').exec((err, event) => {
             if (err)
-                res.status(500).send("Cannot find event with this event ID");
+                res.status(500).set('Content-Type', 'text/plain').send("Cannot find event with this event ID");
             else if (!event){
-                console.log("yo");
-                res.status(404).send("There is no event with this event ID");
+                res.status(404).set('Content-Type', 'text/plain').send("There is no event with this event ID");
             }
             else {
                 res.send({message: `{\n"eventId": ${event.eventId},\n"name": "${event.name}",\n"loc":\n{\n"locId": ${event.loc.locId},\n"name": "${event.loc.name}"\n},\n"quota": ${event.quota}\n}`});
-            } 
-        })
+            }
+        });
     });
 
     //Q8: Put request to change the event details
+    //Done and checked
     app.put('/event/:eventId', (req, res) => {   
-        Event.findOne({eventId: req.params['eventId']}, (err, event) => {
+        Event.findOne({eventId: req.params['eventId']}).populate('loc').exec((err, event) => {
             console.log(event);
             let originalName = event.name;
             let originalLocId = event.loc.locId;
@@ -237,13 +232,11 @@ db.once('open', function () {
                             loc: newLoc!=''?newLoc:originalLoc,
                         }
                     },
-                    {new: true},
-                    (err, updatedEvent) => {
-                        console.log(updatedEvent);
+                    {new: true}).populate('loc').exec((err, updatedEvent) => {
                         if(err)
-                            res.send("An error occurred when trying to update the event.");
+                            res.set('Content-Type', 'text/plain').send("An error occurred when trying to update the event.");
                         else {
-                            res.status(201).send(`{\n"eventId": ${updatedEvent.eventId},\n"name": "${updatedEvent.name}",\n"loc":\n{\n"locId": ${updatedEvent.loc.locId},\n"name": "${updatedEvent.loc.name}"\n},\n"quota": ${updatedEvent.quota}\n}`);
+                            res.status(201).set('Content-Type', 'text/plain').send(`{\n"eventId": ${updatedEvent.eventId},\n"name": "${updatedEvent.name}",\n"loc":\n{\n"locId": ${updatedEvent.loc.locId},\n"name": "${updatedEvent.loc.name}"\n},\n"quota": ${updatedEvent.quota}\n}`);
                         }
                     });
                 }
@@ -262,7 +255,6 @@ db.once('open', function () {
                  res.send("There is already such a location Id");
              }
              else {
-                res.send(req.body['locId']);
                 Location.create({
                     locId: req.body['locId'],
                     name: req.body['name'],
@@ -270,7 +262,6 @@ db.once('open', function () {
                 }, (err, newLocation) => {
                     if (err){
                         console.log(err);
-                        console.log(newLocation['locId']);
                         res.send('location cannot be created');
                     }
                     else
@@ -294,12 +285,12 @@ db.once('open', function () {
 
     //clear all locations
     app.delete('/clearLoc', (req, res) => {
-        Location.remove({}, (err, list) => {
+        Location.deleteMany({}, (err, list) => {
             res.send("All locations deleted");
         });
     });
     app.get('/clearLoc', (req, res) => {
-        Location.remove({}, (err, list) => {
+        Location.deleteMany({}, (err, list) => {
             res.send("All locations deleted");
         });
     });
