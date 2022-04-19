@@ -245,7 +245,9 @@ db.once('open', function () {
         });
     });
 
-    //create location /createLoc/locId/1/name/CUHK/quota/100
+    //The methods below are for testing only
+
+    //create location
     app.post('/createLoc', (req, res) => {
          Location.findOne({locId: req.body['locId']}, (err, location) => {
              if (err){
@@ -272,11 +274,6 @@ db.once('open', function () {
     })
 
     //clear all events
-    app.delete('/clearEvent', (req, res) => {
-        Event.deleteMany({}, (err, list) => {
-            res.send("All events deleted");
-        });
-    });
     app.get('/clearEvent', (req, res) => {
         Event.deleteMany({}, (err, list) => {
             res.send("All events deleted");
@@ -284,11 +281,6 @@ db.once('open', function () {
     });
 
     //clear all locations
-    app.delete('/clearLoc', (req, res) => {
-        Location.deleteMany({}, (err, list) => {
-            res.send("All locations deleted");
-        });
-    });
     app.get('/clearLoc', (req, res) => {
         Location.deleteMany({}, (err, list) => {
             res.send("All locations deleted");
@@ -296,6 +288,7 @@ db.once('open', function () {
     });
 
 
+    //handle other routes
     app.all('/*', (req,res) => {
         res.send("Hello world!");
     });
